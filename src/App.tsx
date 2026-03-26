@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './assets/App.css'
+import Login from "./Login"
 import { loadFromDB, saveToDB } from './db'
 
 // ===== TYPES =====
@@ -180,6 +181,11 @@ export default function App() {
   const [showFailed, setShowFailed] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'idle'|'syncing'|'ok'|'offline'>('idle')
 
+  // ✅ LOGIN STATE — อยู่ใน component ถูกต้อง
+  const [user, setUser] = useState<string | null>(
+    localStorage.getItem("user")
+  )
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const activeMissionRef = useRef<Mission | null>(null)
@@ -307,6 +313,7 @@ export default function App() {
     : syncStatus === 'offline' ? '📴 ออฟไลน์ (บันทึกในเครื่อง)'
     : ''
 
+  // ===== RETURN 1: LOADING =====
   if (!dbLoaded) {
     return (
       <div className="loading-screen">
@@ -318,6 +325,17 @@ export default function App() {
     )
   }
 
+  // ===== RETURN 2: LOGIN ✅ =====
+  if (!user) {
+    return (
+      <Login onLogin={(name: string) => {
+        localStorage.setItem("user", name)
+        setUser(name)
+      }} />
+    )
+  }
+
+  // ===== RETURN 3: MAIN APP =====
   return (
     <>
       {/* NAV */}
@@ -454,7 +472,7 @@ export default function App() {
             <div className="avatar">{getAvatar(state.level)}</div>
             <div className="level-badge">Lv.{state.level}</div>
           </div>
-          <div className="profile-name">นักเรียนผู้กล้า</div>
+          <div className="profile-name">{user}</div>
           <div className="profile-role">{getTitle(state.level)}</div>
         </div>
 
