@@ -1,58 +1,35 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './assets/App.css'
 import Login from "./Login"
+import Register from "./Register"
 import { loadFromDB, saveToDB } from './db'
 
 // ===== TYPES =====
 interface Mission {
-  id: number
-  name: string
-  desc: string
-  icon: string
-  time: number
-  xp: number
-  colorA: string
-  colorB: string
+  id: number; name: string; desc: string; icon: string
+  time: number; xp: number; colorA: string; colorB: string
 }
-
 interface UnlockItem {
-  id: number
-  icon: string
-  name: string
-  type: string
-  req: number
+  id: number; icon: string; name: string; type: string; req: number
 }
-
-interface HistoryEntry {
-  name: string
-  xp: number
-  time: number
-}
-
+interface HistoryEntry { name: string; xp: number; time: number }
 interface AppState {
-  exp: number
-  level: number
-  streak: number
-  totalMissions: number
-  totalMinutes: number
-  completedToday: number[]
-  history: HistoryEntry[]
-  lastDate: string | null
-  phoneUseful: number
+  exp: number; level: number; streak: number; totalMissions: number
+  totalMinutes: number; completedToday: number[]; history: HistoryEntry[]
+  lastDate: string | null; phoneUseful: number
 }
-
 type TabType = 'home' | 'mission' | 'dashboard'
+type AuthPage = 'login' | 'register'
 
 // ===== STATIC DATA =====
 const MISSIONS: Mission[] = [
-  { id: 1, name: 'อ่านบทความ',      desc: 'อ่านบทความความรู้สั้นๆ แล้วจำใจความสำคัญ 3 ข้อ',  icon: '📖', time: 300, xp: 20, colorA: '#4d96ff', colorB: '#c77dff' },
-  { id: 2, name: 'Quiz 3 ข้อ',      desc: 'ตอบคำถามทดสอบความรู้ 3 ข้อ ทำได้เลย!',             icon: '🧩', time: 180, xp: 15, colorA: '#ffd93d', colorB: '#ff9a3c' },
-  { id: 3, name: 'ดูคลิปความรู้',   desc: 'ดูคลิปสั้น 5 นาที แล้วสรุป 1 สิ่งที่ได้เรียนรู้', icon: '🎬', time: 300, xp: 20, colorA: '#6bcb77', colorB: '#4d96ff' },
-  { id: 4, name: 'ฝึกโจทย์คณิต',   desc: 'ทำโจทย์คณิตศาสตร์ง่ายๆ 5 ข้อ ฝึกสมองให้แล่น',   icon: '🔢', time: 360, xp: 25, colorA: '#ff6b6b', colorB: '#ffd93d' },
-  { id: 5, name: 'เขียน Journal',   desc: 'เขียนสิ่งที่เรียนรู้วันนี้ 3–5 ประโยค',            icon: '✏️', time: 240, xp: 18, colorA: '#c77dff', colorB: '#ff6b6b' },
+  { id: 1, name: 'อ่านบทความ',     desc: 'อ่านบทความความรู้สั้นๆ แล้วจำใจความสำคัญ 3 ข้อ',  icon: '📖', time: 300, xp: 20, colorA: '#4d96ff', colorB: '#c77dff' },
+  { id: 2, name: 'Quiz 3 ข้อ',     desc: 'ตอบคำถามทดสอบความรู้ 3 ข้อ ทำได้เลย!',             icon: '🧩', time: 180, xp: 15, colorA: '#ffd93d', colorB: '#ff9a3c' },
+  { id: 3, name: 'ดูคลิปความรู้',  desc: 'ดูคลิปสั้น 5 นาที แล้วสรุป 1 สิ่งที่ได้เรียนรู้', icon: '🎬', time: 300, xp: 20, colorA: '#6bcb77', colorB: '#4d96ff' },
+  { id: 4, name: 'ฝึกโจทย์คณิต',  desc: 'ทำโจทย์คณิตศาสตร์ง่ายๆ 5 ข้อ ฝึกสมองให้แล่น',   icon: '🔢', time: 360, xp: 25, colorA: '#ff6b6b', colorB: '#ffd93d' },
+  { id: 5, name: 'เขียน Journal',  desc: 'เขียนสิ่งที่เรียนรู้วันนี้ 3–5 ประโยค',            icon: '✏️', time: 240, xp: 18, colorA: '#c77dff', colorB: '#ff6b6b' },
   { id: 6, name: 'ฝึกภาษาอังกฤษ', desc: 'เรียนคำศัพท์ใหม่ 5 คำ + ประโยคตัวอย่าง',          icon: '🌍', time: 300, xp: 22, colorA: '#4d96ff', colorB: '#6bcb77' },
 ]
-
 const UNLOCKS: UnlockItem[] = [
   { id: 1, icon: '🦸', name: 'Hero',     type: 'avatar', req: 1 },
   { id: 2, icon: '🧙', name: 'Wizard',   type: 'avatar', req: 3 },
@@ -64,7 +41,6 @@ const UNLOCKS: UnlockItem[] = [
   { id: 8, icon: '🌸', name: 'Sakura',   type: 'theme',  req: 5 },
   { id: 9, icon: '🌙', name: 'Midnight', type: 'theme',  req: 8 },
 ]
-
 const TITLES = [
   { min: 1,  title: '🌱 มือใหม่' },
   { min: 3,  title: '📚 นักเรียน' },
@@ -73,64 +49,46 @@ const TITLES = [
   { min: 12, title: '🌟 ผู้เชี่ยวชาญ' },
   { min: 20, title: '💎 ตำนาน' },
 ]
-
 const DOT_COLORS = ['#4d96ff','#6bcb77','#ffd93d','#c77dff','#ff6b6b']
 const STORAGE_KEY = 'learn2unlock_v2'
 
 // ===== HELPERS =====
 function xpForLevel(level: number) { return level * 100 }
-
 function getTitle(level: number) {
   let t = TITLES[0].title
   for (const item of TITLES) { if (level >= item.min) t = item.title }
   return t
 }
-
 function getAvatar(level: number) {
   if (level >= 5) return '🦊'
   if (level >= 3) return '🧙'
   return '🦸'
 }
-
 function fmtTimer(sec: number) {
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
+  const m = Math.floor(sec / 60); const s = sec % 60
   return `${m}:${s.toString().padStart(2, '0')}`
 }
-
 function todayStr() { return new Date().toDateString() }
-
 function getDefaultState(): AppState {
-  return {
-    exp: 0, level: 1, streak: 0, totalMissions: 0,
-    totalMinutes: 0, completedToday: [], history: [],
-    lastDate: todayStr(), phoneUseful: 0,
-  }
+  return { exp: 0, level: 1, streak: 0, totalMissions: 0, totalMinutes: 0, completedToday: [], history: [], lastDate: todayStr(), phoneUseful: 0 }
 }
-
 function applyDayReset(saved: AppState): AppState {
   const today = todayStr()
   if (saved.lastDate !== today) {
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
     const newStreak = saved.lastDate === yesterday.toDateString()
-      ? (saved.streak || 0) + 1
-      : saved.lastDate !== null ? 0 : saved.streak
+      ? (saved.streak || 0) + 1 : saved.lastDate !== null ? 0 : saved.streak
     return { ...saved, streak: newStreak, completedToday: [], phoneUseful: 0, lastDate: today }
   }
   return saved
 }
-
 function loadLocalState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return getDefaultState()
     return applyDayReset({ ...getDefaultState(), ...JSON.parse(raw) })
-  } catch {
-    return getDefaultState()
-  }
+  } catch { return getDefaultState() }
 }
-
 function saveLocal(s: AppState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)) } catch { /* ignore */ }
 }
@@ -138,8 +96,7 @@ function saveLocal(s: AppState) {
 // ===== CONFETTI =====
 function runConfetti(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d')!
-  canvas.width = window.innerWidth
-  canvas.height = window.innerHeight
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight
   const pieces = Array.from({ length: 90 }, () => ({
     x: Math.random() * canvas.width, y: -20,
     vx: (Math.random() - 0.5) * 5, vy: Math.random() * 4 + 2,
@@ -151,8 +108,7 @@ function runConfetti(canvas: HTMLCanvasElement) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     pieces.forEach(p => {
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180)
-      ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size)
-      ctx.restore()
+      ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore()
       p.x += p.vx; p.y += p.vy; p.rot += p.rv; p.vy += 0.06
     })
     frame++
@@ -165,81 +121,77 @@ function runConfetti(canvas: HTMLCanvasElement) {
 // ===== MAIN APP =====
 export default function App() {
   const [state, setState] = useState<AppState>(() => loadLocalState())
-  const [dbLoaded, setDbLoaded] = useState(false)
-  const [tab, setTab] = useState<TabType>('home')
+  const [dbLoaded, setDbLoaded]       = useState(false)
+  const [tab, setTab]                 = useState<TabType>('home')
   const [activeMission, setActiveMission] = useState<Mission | null>(null)
   const [missionRunning, setMissionRunning] = useState(false)
-  const [timerSec, setTimerSec] = useState(0)
-  const [timerTotal, setTimerTotal] = useState(0)
-  const [showWarn, setShowWarn] = useState(false)
-  const [pendingTab, setPendingTab] = useState<TabType | null>(null)
-  const [showReward, setShowReward] = useState(false)
+  const [timerSec, setTimerSec]       = useState(0)
+  const [timerTotal, setTimerTotal]   = useState(0)
+  const [showWarn, setShowWarn]       = useState(false)
+  const [pendingTab, setPendingTab]   = useState<TabType | null>(null)
+  const [showReward, setShowReward]   = useState(false)
   const [rewardMission, setRewardMission] = useState<Mission | null>(null)
   const [showLevelUp, setShowLevelUp] = useState(false)
-  const [levelUpNum, setLevelUpNum] = useState(1)
+  const [levelUpNum, setLevelUpNum]   = useState(1)
   const [failedMission, setFailedMission] = useState<Mission | null>(null)
-  const [showFailed, setShowFailed] = useState(false)
-  const [syncStatus, setSyncStatus] = useState<'idle'|'syncing'|'ok'|'offline'>('idle')
+  const [showFailed, setShowFailed]   = useState(false)
+  const [syncStatus, setSyncStatus]   = useState<'idle'|'syncing'|'ok'|'offline'>('idle')
 
-  // ✅ LOGIN STATE — อยู่ใน component ถูกต้อง
-  const [user, setUser] = useState<string | null>(
-    localStorage.getItem("user")
-  )
+  // ===== AUTH STATE =====
+  const [user, setUser]             = useState<string | null>(() => localStorage.getItem("user"))
+  const [authPage, setAuthPage]     = useState<AuthPage>('login')
+  const [showLogout, setShowLogout] = useState(false)
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const timerRef        = useRef<ReturnType<typeof setInterval> | null>(null)
+  const canvasRef       = useRef<HTMLCanvasElement>(null)
   const activeMissionRef = useRef<Mission | null>(null)
-
   useEffect(() => { activeMissionRef.current = activeMission }, [activeMission])
 
-  // ===== LOAD FROM MONGODB ON STARTUP =====
+  // ===== LOAD FROM DB =====
   useEffect(() => {
+    if (!user) { setDbLoaded(true); return }
     setSyncStatus('syncing')
     loadFromDB<AppState | null>(null).then(dbState => {
       if (dbState && typeof dbState.level === 'number') {
         const fresh = applyDayReset({ ...getDefaultState(), ...dbState })
-        setState(fresh)
-        saveLocal(fresh)
+        setState(fresh); saveLocal(fresh)
       }
-      setDbLoaded(true)
-      setSyncStatus('ok')
+      setDbLoaded(true); setSyncStatus('ok')
       setTimeout(() => setSyncStatus('idle'), 2000)
     }).catch(() => {
-      setDbLoaded(true)
-      setSyncStatus('offline')
+      setDbLoaded(true); setSyncStatus('offline')
       setTimeout(() => setSyncStatus('idle'), 3000)
     })
-  }, [])
+  }, [user])
 
-  // ===== SAVE TO BOTH LOCALSTORAGE + MONGODB =====
+  // ===== PERSIST =====
   const persistState = useCallback((s: AppState) => {
-    saveLocal(s)
-    setSyncStatus('syncing')
-    saveToDB(s).then(() => {
-      setSyncStatus('ok')
-      setTimeout(() => setSyncStatus('idle'), 1500)
-    }).catch(() => {
-      setSyncStatus('offline')
-      setTimeout(() => setSyncStatus('idle'), 2000)
-    })
+    saveLocal(s); setSyncStatus('syncing')
+    saveToDB(s)
+      .then(() => { setSyncStatus('ok'); setTimeout(() => setSyncStatus('idle'), 1500) })
+      .catch(() => { setSyncStatus('offline'); setTimeout(() => setSyncStatus('idle'), 2000) })
   }, [])
 
   const triggerConfetti = useCallback(() => {
     if (canvasRef.current) runConfetti(canvasRef.current)
   }, [])
 
-  const handleComplete = useCallback(() => {
-    const m = activeMissionRef.current
-    if (!m) return
+  // ===== LOGOUT =====
+  function handleLogout() {
     clearInterval(timerRef.current!)
-    setMissionRunning(false)
-    setActiveMission(null)
+    localStorage.removeItem("user")
+    localStorage.removeItem(STORAGE_KEY)
+    setUser(null); setShowLogout(false); setTab('home')
+    setState(getDefaultState()); setAuthPage('login')
+  }
 
+  // ===== MISSION COMPLETE =====
+  const handleComplete = useCallback(() => {
+    const m = activeMissionRef.current; if (!m) return
+    clearInterval(timerRef.current!); setMissionRunning(false); setActiveMission(null)
     setState(prev => {
       let { exp, level, completedToday, totalMissions, totalMinutes, phoneUseful, history } = prev
-      exp += m.xp
-      completedToday = [...completedToday, m.id]
-      totalMissions += 1
+      exp += m.xp; completedToday = [...completedToday, m.id]; totalMissions += 1
       totalMinutes += Math.round(m.time / 60)
       phoneUseful = Math.min(100, phoneUseful + Math.round(m.time / 60) * 5)
       history = [...(history || []), { name: m.name, xp: m.xp, time: Date.now() }]
@@ -257,7 +209,6 @@ export default function App() {
     })
   }, [persistState, triggerConfetti])
 
-  // Timer countdown
   useEffect(() => {
     if (!missionRunning) return
     timerRef.current = setInterval(() => {
@@ -269,35 +220,26 @@ export default function App() {
     return () => clearInterval(timerRef.current!)
   }, [missionRunning, handleComplete])
 
-  // ===== TAB SWITCH =====
+  // ===== TAB / MODAL =====
   const handleTabClick = (t: TabType) => {
     if (missionRunning) { setPendingTab(t); setShowWarn(true); return }
     setTab(t)
   }
-
   const openMission = (m: Mission) => {
     setActiveMission(m); setTimerSec(m.time); setTimerTotal(m.time)
     setMissionRunning(false); clearInterval(timerRef.current!)
   }
-
   const closeMissionModal = () => {
     if (missionRunning) { setPendingTab(null); setShowWarn(true); return }
     setActiveMission(null)
   }
-
-  const startMission = () => {
-    if (missionRunning || !activeMission) return
-    setMissionRunning(true)
-  }
-
+  const startMission = () => { if (missionRunning || !activeMission) return; setMissionRunning(true) }
   const continueWarn = () => { setShowWarn(false); setPendingTab(null) }
-
   const confirmLeave = () => {
     clearInterval(timerRef.current!); setMissionRunning(false)
     const m = activeMission; setActiveMission(null); setShowWarn(false)
     setFailedMission(m); setShowFailed(true)
-    if (pendingTab) { setTab(pendingTab); setPendingTab(null) }
-    else setTab('mission')
+    if (pendingTab) { setTab(pendingTab); setPendingTab(null) } else setTab('mission')
   }
 
   // ===== COMPUTED =====
@@ -306,14 +248,29 @@ export default function App() {
   const xpPct = Math.min(100, (state.exp / xpForLevel(state.level)) * 100)
   const timerPct = timerTotal > 0 ? (timerSec / timerTotal) * 100 : 100
   const availableMissions = MISSIONS.filter(m => !state.completedToday.includes(m.id))
-
-  // Sync indicator
   const syncIndicator = syncStatus === 'syncing' ? '🔄 กำลังซิงค์...'
     : syncStatus === 'ok' ? '☁️ บันทึกแล้ว'
-    : syncStatus === 'offline' ? '📴 ออฟไลน์ (บันทึกในเครื่อง)'
-    : ''
+    : syncStatus === 'offline' ? '📴 ออฟไลน์ (บันทึกในเครื่อง)' : ''
 
-  // ===== RETURN 1: LOADING =====
+  // ===== RENDER: AUTH =====
+  if (!user) {
+    if (authPage === 'register') {
+      return (
+        <Register
+          onRegister={email => { setUser(email); setAuthPage('login') }}
+          onGoLogin={() => setAuthPage('login')}
+        />
+      )
+    }
+    return (
+      <Login
+        onLogin={email => setUser(email)}
+        onGoRegister={() => setAuthPage('register')}
+      />
+    )
+  }
+
+  // ===== RENDER: LOADING =====
   if (!dbLoaded) {
     return (
       <div className="loading-screen">
@@ -325,17 +282,7 @@ export default function App() {
     )
   }
 
-  // ===== RETURN 2: LOGIN ✅ =====
-  if (!user) {
-    return (
-      <Login onLogin={(name: string) => {
-        localStorage.setItem("user", name)
-        setUser(name)
-      }} />
-    )
-  }
-
-  // ===== RETURN 3: MAIN APP =====
+  // ===== RENDER: MAIN APP =====
   return (
     <>
       {/* NAV */}
@@ -348,15 +295,14 @@ export default function App() {
         <div className="nav-right">
           <div className="streak-pill">🔥 {state.streak}</div>
           <div className="level-pill">⚡ Lv.{state.level}</div>
+          {/* LOGOUT BUTTON in NAV */}
+          <button className="nav-logout-btn" onClick={() => setShowLogout(true)} title="ออกจากระบบ">
+            🚪
+          </button>
         </div>
       </nav>
 
-      {/* SYNC STATUS */}
-      {syncIndicator && (
-        <div className={`sync-bar ${syncStatus}`}>{syncIndicator}</div>
-      )}
-
-      {/* CONFETTI */}
+      {syncIndicator && <div className={`sync-bar ${syncStatus}`}>{syncIndicator}</div>}
       <canvas className="confetti-canvas" ref={canvasRef} />
 
       {/* ===== HOME PAGE ===== */}
@@ -474,6 +420,10 @@ export default function App() {
           </div>
           <div className="profile-name">{user}</div>
           <div className="profile-role">{getTitle(state.level)}</div>
+          {/* LOGOUT BUTTON in PROFILE */}
+          <button className="profile-logout-btn" onClick={() => setShowLogout(true)}>
+            🚪 ออกจากระบบ
+          </button>
         </div>
 
         <div className="unlock-section">
@@ -553,6 +503,27 @@ export default function App() {
             <div className="warn-btns">
               <button className="warn-cancel" onClick={continueWarn}>🔙 ทำต่อ</button>
               <button className="warn-confirm" onClick={confirmLeave}>🚪 ออกเลย</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== LOGOUT DIALOG ===== */}
+      {showLogout && (
+        <div className="warn-overlay">
+          <div className="warn-box logout-box">
+            <div className="warn-emoji">👋</div>
+            <div className="warn-title" style={{ color: 'var(--accent4)' }}>ออกจากระบบ?</div>
+            <div className="logout-user-pill">
+              <span>👤</span> {user}
+            </div>
+            <div className="warn-desc">
+              Progress ของคุณถูกบันทึกไว้แล้ว<br />
+              เข้าสู่ระบบอีกครั้งเพื่อกลับมาเล่นต่อได้เลย!
+            </div>
+            <div className="warn-btns">
+              <button className="warn-cancel" onClick={() => setShowLogout(false)}>❌ ยกเลิก</button>
+              <button className="warn-confirm logout-confirm" onClick={handleLogout}>🚪 ออกเลย</button>
             </div>
           </div>
         </div>

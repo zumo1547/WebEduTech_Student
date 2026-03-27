@@ -1,47 +1,57 @@
 // src/db.ts
-// Helper functions to sync state with MongoDB via Vercel API
+// Helper functions to sync game state with MongoDB via Vercel API
+// Uses the logged-in user's email as the key (not random ID)
 
-const USER_ID_KEY = 'learn2unlock_userid'
+const STORAGE_KEY = 'learn2unlock_v2'
 
-// Generate or retrieve a persistent user ID
-export function getUserId(): string {
-  let id = localStorage.getItem(USER_ID_KEY)
-  if (!id) {
-    id = 'user_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now()
-    localStorage.setItem(USER_ID_KEY, id)
-  }
-  return id
+/** Get current user's email from localStorage */
+function getUserEmail(): string | null {
+  return localStorage.getItem('user')
 }
 
-// Load state from MongoDB (fallback to localStorage if offline)
+/**
+ * Load game state from MongoDB.
+ * Falls back to localFallback if user is not logged in or network error.
+ */
 export async function loadFromDB<T>(localFallback: T): Promise<T> {
+  const email = getUserEmail()
+  if (!email) return localFallback
+
   try {
-    const userId = getUserId()
-    const res = await fetch(`/api/user?userId=${userId}`, {
+    const res = await fetch(`/api/state?email=${encodeURIComponent(email)}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) return localFallback
     const data = await res.json()
-    if (!data) return localFallback
-    // Remove MongoDB metadata
-    const { userId: _uid, updatedAt: _upd, ...state } = data
-    void _uid; void _upd
-    return state as T
+    if (!data || !data.state) return localFallback
+    return data.state as T
   } catch {
     // Offline or API error — use local fallback
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      try { return JSON.parse(raw) as T } catch { /* ignore */ }
+    }
     return localFallback
   }
 }
 
-// Save state to MongoDB (fire-and-forget, also save to localStorage)
+/**
+ * Save game state to MongoDB (also saved to localStorage).
+ */
 export async function saveToDB<T extends object>(state: T): Promise<void> {
+  const email = getUserEmail()
+
+  // Always save locally
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* ignore */ }
+
+  if (!email) return
+
   try {
-    const userId = getUserId()
-    await fetch(`/api/user?userId=${userId}`, {
+    await fetch(`/api/state?email=${encodeURIComponent(email)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state),
+      body: JSON.stringify({ state }),
     })
   } catch {
     // Offline — silently ignore, localStorage still saved
